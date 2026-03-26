@@ -1,0 +1,91 @@
+name: Bug Report
+description: Report a bug in @juspay/lumos
+title: '[Bug]: '
+labels: ['bug', 'needs triage']
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug in @juspay/lumos.
+        Please include enough detail to reproduce the issue in the analysis flow, local runner, or CI environment.
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Details
+      description: How can we get in touch with you if we need more info?
+      placeholder: ex. email@example.com
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Tell us what happened and what you expected instead.
+      placeholder: Describe the failing behavior, error, or incorrect analysis result.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Lumos Area
+      description: Which part of Lumos is affected?
+      options:
+        - Playwright parser
+        - Prompt / analysis flow
+        - Bitbucket integration
+        - Jira integration
+        - Comment posting / retry logic
+        - Local test runner
+        - CI / release tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: Version
+      description: What version of @juspay/lumos are you running?
+      options:
+        - Latest
+        - 1.0.0
+        - Other (please specify in description)
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Where are you running Lumos?
+      multiple: true
+      options:
+        - Jenkins CI
+        - Local (macOS)
+        - Local (Linux)
+        - GitHub Actions
+        - Other
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Share the exact command, fixture, PR, or report path involved.
+      placeholder: |
+        1. Run `pnpm test:local --live --pr 4638`
+        2. Use fixture `fixtures/result-4638.json`
+        3. Observe...
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/juspay/lumos/blob/release/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run staged-file linting/formatting first so typecheck sees the latest content
+npx lint-staged
+
+# Keep a basic project-wide safety net before commit
+pnpm typecheck
