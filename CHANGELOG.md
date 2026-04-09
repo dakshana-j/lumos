@@ -1,3 +1,7 @@
+## <small>1.0.1 (2026-04-09)</small>
+
+* fix: upgrade to npm@11 for native OIDC publish support ([4f14200](https://github.com/juspay/lumos/commit/4f14200))
+
 ## 1.0.0 (2026-04-08)
 
 - feat: add Lumos V1.1 - AI-powered Playwright test failure analyzer ([0c0edf3](https://github.com/juspay/lumos/commit/0c0edf3))
