@@ -1,3 +1,7 @@
+## 1.1.0 (2026-04-09)
+
+* feat: discover PR from branch name when PR ID is not provided ([937e77d](https://github.com/juspay/lumos/commit/937e77d))
+
 ## <small>1.0.1 (2026-04-09)</small>
 
 * fix: upgrade to npm@11 for native OIDC publish support ([4f14200](https://github.com/juspay/lumos/commit/4f14200))
