@@ -1,3 +1,7 @@
+## <small>1.1.1 (2026-04-10)</small>
+
+* fix: add prompt size diagnostics to pinpoint token budget issues ([7e5d6f9](https://github.com/juspay/lumos/commit/7e5d6f9))
+
 ## 1.1.0 (2026-04-09)
 
 * feat: discover PR from branch name when PR ID is not provided ([937e77d](https://github.com/juspay/lumos/commit/937e77d))
