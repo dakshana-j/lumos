@@ -1,3 +1,7 @@
+## <small>1.1.2 (2026-04-12)</small>
+
+* fix: resolve duplicate comments and verification failures for find-by-branch PR discovery ([d3bdfdb](https://github.com/juspay/lumos/commit/d3bdfdb))
+
 ## <small>1.1.1 (2026-04-10)</small>
 
 * fix: add prompt size diagnostics to pinpoint token budget issues ([7e5d6f9](https://github.com/juspay/lumos/commit/7e5d6f9))
