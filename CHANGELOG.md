@@ -1,3 +1,7 @@
+## <small>1.1.3 (2026-04-12)</small>
+
+* fix: delete old Lumos comments and remove dead verification code ([766e660](https://github.com/juspay/lumos/commit/766e660))
+
 ## <small>1.1.2 (2026-04-12)</small>
 
 * fix: resolve duplicate comments and verification failures for find-by-branch PR discovery ([d3bdfdb](https://github.com/juspay/lumos/commit/d3bdfdb))
