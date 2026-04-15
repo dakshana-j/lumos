@@ -1,3 +1,7 @@
+## 1.2.0 (2026-04-15)
+
+* feat: resolve PR by branch, inject prior-run context, and post safe-to-merge comment ([e428d56](https://github.com/juspay/lumos/commit/e428d56))
+
 ## <small>1.1.3 (2026-04-12)</small>
 
 * fix: delete old Lumos comments and remove dead verification code ([766e660](https://github.com/juspay/lumos/commit/766e660))
