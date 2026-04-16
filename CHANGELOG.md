@@ -1,3 +1,7 @@
+## 1.3.0 (2026-04-16)
+
+* feat: add AI-powered E2E test generation from PR diffs ([a025a1e](https://github.com/juspay/lumos/commit/a025a1e))
+
 ## 1.2.0 (2026-04-15)
 
 * feat: resolve PR by branch, inject prior-run context, and post safe-to-merge comment ([e428d56](https://github.com/juspay/lumos/commit/e428d56))
