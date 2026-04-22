@@ -1,3 +1,7 @@
+## 1.4.0 (2026-04-22)
+
+* feat: add PR creation mode with recursive generation guard ([ef41694](https://github.com/juspay/lumos/commit/ef41694))
+
 ## 1.3.0 (2026-04-16)
 
 * feat: add AI-powered E2E test generation from PR diffs ([a025a1e](https://github.com/juspay/lumos/commit/a025a1e))
