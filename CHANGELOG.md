@@ -1,3 +1,7 @@
+## <small>1.4.3 (2026-04-23)</small>
+
+* fix: extend credential injection to git push ([4af88a0](https://github.com/juspay/lumos/commit/4af88a0))
+
 ## <small>1.4.2 (2026-04-23)</small>
 
 * fix: inject Bitbucket credentials into remote URL before git fetch ([b3fb1b3](https://github.com/juspay/lumos/commit/b3fb1b3))
