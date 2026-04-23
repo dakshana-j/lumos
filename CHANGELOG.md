@@ -1,3 +1,7 @@
+## <small>1.4.1 (2026-04-23)</small>
+
+* fix: replace resolvePrIdByBranch with listPrsForBranch for correct PR lookup ([78dc18c](https://github.com/juspay/lumos/commit/78dc18c))
+
 ## 1.4.0 (2026-04-22)
 
 * feat: add PR creation mode with recursive generation guard ([ef41694](https://github.com/juspay/lumos/commit/ef41694))
