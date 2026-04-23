@@ -1,3 +1,7 @@
+## <small>1.4.2 (2026-04-23)</small>
+
+* fix: inject Bitbucket credentials into remote URL before git fetch ([b3fb1b3](https://github.com/juspay/lumos/commit/b3fb1b3))
+
 ## <small>1.4.1 (2026-04-23)</small>
 
 * fix: replace resolvePrIdByBranch with listPrsForBranch for correct PR lookup ([78dc18c](https://github.com/juspay/lumos/commit/78dc18c))
