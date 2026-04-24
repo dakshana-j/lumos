@@ -7,6 +7,10 @@ export {
   buildSystemPrompt,
   buildUserMessage,
 } from './prompts/system-prompt.js';
+export {
+  buildPrReviewSystemPrompt,
+  buildPrReviewUserMessage,
+} from './prompts/pr-review-prompt.js';
 export { logger, setLogLevel } from './utils/logger.js';
 
 // Error hierarchy
@@ -33,6 +37,8 @@ export type {
   TestGenOptions,
   TestGenResult,
   TestGenMode,
+  ReviewPrOptions,
+  ReviewPrResult,
 } from './parsers/types.js';
 export type {
   FailureClassificationType,
@@ -47,7 +53,7 @@ export type {
 /**
  * Create and initialize a Lumos instance.
  *
- * Returns `{ analyze, generateTests }` handles -- the consumer never
+ * Returns `{ analyze, generateTests, reviewPr }` handles -- the consumer never
  * manages the orchestrator lifecycle directly.
  *
  * Usage:
@@ -58,16 +64,20 @@ export type {
  * const result = await lumos.analyze({ ... });
  * // or
  * const genResult = await lumos.generateTests({ ... });
+ * // or
+ * const reviewResult = await lumos.reviewPr({ ... });
  * ```
  */
 export async function createLumos(projectRoot?: string): Promise<{
   analyze: LumosOrchestrator['analyze'];
   generateTests: LumosOrchestrator['generateTests'];
+  reviewPr: LumosOrchestrator['reviewPr'];
 }> {
   const orchestrator = new LumosOrchestrator(projectRoot);
   await orchestrator.initialize();
   return {
     analyze: orchestrator.analyze.bind(orchestrator),
     generateTests: orchestrator.generateTests.bind(orchestrator),
+    reviewPr: orchestrator.reviewPr.bind(orchestrator),
   };
 }

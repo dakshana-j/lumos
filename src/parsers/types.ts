@@ -188,6 +188,29 @@ export interface TestGenResult {
   toolsUsed?: string[];
   rawResponse?: string;
 }
+// --------------------------------------------------------------------------
+// PR Review
+// --------------------------------------------------------------------------
+export interface ReviewPrOptions {
+  workspace: string;
+  repository: string;
+  pullRequestId: string;
+  /** Git branch name — used to resolve pullRequestId when it is '0' or missing */
+  branch?: string;
+  dryRun?: boolean;
+  triggeredBy?: string;
+}
+
+export interface ReviewPrResult {
+  allPassed: boolean;
+  checksRun: number;
+  commentsPosted: number;
+  tokenUsage?: TokenUsage;
+  estimatedCost?: number;
+  durationMs?: number;
+  toolsUsed?: string[];
+  rawResponse?: string;
+}
 
 /**
  * PR metadata fetched from Bitbucket REST API.

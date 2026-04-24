@@ -29,6 +29,23 @@ evolves or new patterns are introduced. -->
                           │  Retry loop, fallback posting,           │
                           │  cost tracking, tsc/eslint validation    │
                           └─────────────────────────────────────────┘
+Report JSON --> Parser --> Failures + Stats
+                               |
+                               v
+Config YAML --> Config Loader (3-layer) --> LumosConfig (Zod-validated)
+                               |
+                               v
+Memory Bank files --> Prompt Builders --> Analysis Prompt or PR Review Prompt
+                               |
+                               v
+                      NeuroLink Agent (autonomous)
+                        |            |
+                   Bitbucket MCP   Jira MCP (optional)
+                        |
+          PR diff, source files, PR metadata, post review/comment
+                               |
+                               v
+          Orchestrator (`analyze()` + `reviewPr()`)
 ```
 
 Two primary flows:
@@ -38,13 +55,20 @@ Two primary flows:
 2. **generateTests()** (v2): Fetch PR metadata + changed files via Bitbucket REST API,
    filter testable source files, AI generates E2E test code, posts as PR comment
    or creates a test PR with Jira ticket.
+3. **reviewPr()** (v3): Build a repo-agnostic PR review prompt, perform a single
+   `generate()` call, post a structured 10-check review comment with a
+   PASS/FAIL/SKIP verdict per check. No retry loop — simpler than failure analysis.
+
+The `reviewPr()` path is intentionally simpler: it builds a dedicated PR
+review prompt, performs a single `generate()` call, and returns a compact
+review result without the retry/fallback logic used by failure analysis.
 
 ## File Map
 
 | File                                    | Purpose                                                                                                                |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `src/index.ts`                          | Public API: async `createLumos()` factory returning `{ analyze, generateTests }` + all exports                         |
-| `src/orchestrator.ts`                   | `LumosOrchestrator` class: init, MCP registration, `analyze()` + `generateTests()` flows                               |
+| `src/index.ts`                          | Public API: async `createLumos()` factory returning `{ analyze, generateTests, reviewPr }` + all exports               |
+| `src/orchestrator.ts`                   | `LumosOrchestrator` class: init, MCP registration, `analyze()` + `generateTests()` + `reviewPr()` flows                |
 | `src/config.ts`                         | 3-layer config loader with Zod validation (defaults -> YAML -> env overrides)                                          |
 | `src/parsers/types.ts`                  | All TypeScript interfaces (TestFailure, AnalyzeOptions, TestGenOptions, TokenUsage, PrMetadata, ChangedFile, etc.)     |
 | `src/parsers/playwright.ts`             | Playwright JSON report parser (recursive suite walker, failedAttempts computation)                                     |
@@ -64,9 +88,33 @@ Two primary flows:
 | `vitest.config.ts`                      | Test config (v8 coverage)                                                                                              |
 | `test/orchestrator.test.ts`             | Unit tests for LumosOrchestrator (analyze flow, retry, fallback)                                                       |
 | `test/playwright.test.ts`               | Unit tests for Playwright report parser                                                                                |
+| `test/pr-review.test.ts`                | Unit tests for reviewPr() (dry-run, comment detection, dedup, branch resolution, new checks 7–10)                      |
 | `test/test-generation.test.ts`          | Unit tests for test generation (parsers, prompt builders, file filtering)                                              |
 | `.github/workflows/ci.yml`              | CI workflow: tests on Node 20.x and 22.x                                                                               |
 | `.github/workflows/release.yml`         | npm publish pipeline: semantic-release with OIDC provenance on push to `release` branch                                |
+| File                                    | Purpose                                                                                                                |
+| ---------------------------------       | ---------------------------------------------------------------------------------------------------------------------- |
+| `src/index.ts`                          | Public API: async `createLumos()` factory + all exports                                                                |
+| `src/orchestrator.ts`                   | `LumosOrchestrator` class: init, MCP registration, `analyze()` retry loop, fallback posting, cost tracking             |
+| `src/config.ts`                         | 3-layer config loader with Zod validation (defaults -> YAML -> env overrides)                                          |
+| `src/parsers/types.ts`                  | All TypeScript interfaces (TestFailure, AnalyzeOptions, TokenUsage, AnalysisResult, SessionData, etc.)                 |
+| `src/parsers/playwright.ts`             | Playwright JSON report parser (recursive suite walker, failedAttempts computation)                                     |
+| `src/prompts/system-prompt.ts`          | System prompt + user message builders, memory bank loading (15k char truncation)                                       |
+| `src/prompts/pr-review-prompt.ts`       | Dedicated PR review prompt builders and review comment template                                                        |
+| `src/prompts/schemas.ts`                | Zod schemas for structured output (future use)                                                                         |
+| `src/utils/errors.ts`                   | Custom error hierarchy: LumosError, ConfigError, ReportParseError, MCPError, AnalysisTimeoutError, BudgetExceededError |
+| `src/utils/logger.ts`                   | Leveled console logger with `[Lumos]` prefix                                                                           |
+| `scripts/test-local.ts`                 | Local test script with PR_CONFIGS for 4598 and 4638                                                                    |
+| `scripts/review-local.ts`               | Local smoke test for `reviewPr()`                                                                                      |
+| `lumos.config.yaml`                     | Default config (litellm/glm-latest for local dev, budget limits)                                                       |
+| `vitest.config.ts`                      | Test config (v8 coverage)                                                                                              |
+| `test/orchestrator.test.ts`             | Unit tests for LumosOrchestrator (analyze flow, retry, fallback)                                                       |
+| `test/playwright.test.ts`               | Unit tests for Playwright report parser                                                                                |
+| `.github/workflows/ci.yml`              | CI workflow: tests on Node 20.x and 22.x                                                                               |
+| `.github/workflows/release.yml`         | npm publish pipeline: semantic-release with OIDC provenance on push to `release` branch                                |
+| `eslint.config.js`                      | ESLint flat config with typescript-eslint                                                                              |
+| `commitlint.config.cjs`                 | Conventional commits enforcement                                                                                       |
+| `.releaserc.json`                       | semantic-release config: Jira prefix stripping, npm provenance, changelog, GitHub releases                             |
 
 ## Config Loading Pattern (3 layers)
 
@@ -122,6 +170,10 @@ needs `command`, `args`, `transport`, `env`.
 ### V1: Test Failure Analysis (`system-prompt.ts`)
 
 The system prompt has 5 fixed sections + 1 optional section:
+
+### Failure Analysis Prompt
+
+The analysis system prompt has 5 fixed sections + 1 optional section:
 
 1. **ROLE**: Identity and high-level job description
 2. **AVAILABLE TOOLS**: Lists MCP tools the agent can use
@@ -182,6 +234,49 @@ Key design: the test intent planner (step 4) forces the AI to output a structure
 plan BEFORE generating code. This prevents the AI from jumping straight to coding
 and missing edge cases. The plan appears in the comment under "### Test Plan".
 
+### PR Review Prompt (`pr-review-prompt.ts`)
+
+The PR review system prompt is separate from the failure-analysis and
+test-generation prompts. It is **repo-agnostic** — no Lighthouse-specific
+paths, title formats, or team names are hardcoded. Project-specific conventions
+can be injected via `memory-bank/pr-review-conventions.md` at runtime.
+
+Structure:
+
+1. **ROLE** — Lumos as a universal AI PR review agent (not tied to any specific
+   project). Job: validate a PR against software engineering best practices and
+   post a structured review comment.
+2. **AVAILABLE TOOLS** — Bitbucket MCP tools: `get_pull_request`,
+   `get_pull_request_diff`, `list_pr_commits`, `add_comment`, `delete_comment`,
+   `get_file_content`
+3. **WORKFLOW** (6 steps) — fetch PR → fetch diff → delete old `## Lumos Review`
+   comments → run all checks → compose comment → post via `add_comment`
+4. **CHECKS** — 10 checks with PASS / FAIL / SKIP semantics:
+
+   | #   | Check                            | Severity  | Notes                                                                       |
+   | --- | -------------------------------- | --------- | --------------------------------------------------------------------------- |
+   | 1   | PR Description Completeness      | Hard-fail | Problem/Root Cause/Solution/How to Test, >100 chars, no placeholders        |
+   | 2   | PR Title Convention              | Hard-fail | Ticket ref + valid type (feat/fix/…) — repo-agnostic, judgement-based       |
+   | 3   | Build/CI Status                  | Hard-fail | From PR metadata; SKIP if unavailable                                       |
+   | 4   | Test Coverage                    | Hard-fail | Testable src changed → test files touched; generic path heuristic           |
+   | 5   | Playwright Convention Compliance | Hard-fail | Mandatory on all PRs; SKIP only for pure docs/config/CI changes             |
+   | 6   | Automation Coverage              | Hard-fail | Mandatory on ALL PRs — no exceptions; both mock and non-mock paths required |
+   | 7   | How to Test (Dev-Authored)       | Hard-fail | Must NOT be auto-generated (Yama, Copilot, etc.); specific signals listed   |
+   | 8   | Video Proof — Mocking Mode       | Hard-fail | Screen recording/GIF/link with mocked backend; SKIP non-UI only             |
+   | 9   | Video Proof — Non-Mocking Mode   | Hard-fail | Separate recording against real backend; SKIP non-UI only                   |
+   | 10  | Dev Code-Change Proof            | Hard-fail | Screenshots/recording of manual testing; SKIP pure refactors/docs           |
+
+5. **PROJECT CONVENTIONS REFERENCE** (optional) — content of
+   `memory-bank/pr-review-conventions.md` injected if file exists (≤8k chars)
+6. **COMMENT FORMAT** — rigid 10-row markdown table + verdict section:
+   - `✅ Approved` — all checks PASS
+   - `❌ Changes Required` — any hard-fail (checks 1–4, 7–10)
+   - `⚠ Review Recommended` — only soft-fail (checks 5–6)
+   - `➖` — check skipped (N/A)
+
+`buildPrReviewUserMessage()` supplies only: workspace, repository, PR ID, and
+optional trigger source.
+
 ## Orchestrator-Level Comment Cleanup
 
 Before each `generate()` attempt, `deletePreviousLumosComments()` scans the
@@ -215,6 +310,10 @@ Requirements:
 ```typescript
 AnalyzeOptions {
   workspace, repository, branch, pullRequestId?, reportPath?, type, dryRun?
+}
+
+ReviewPrOptions {
+  workspace, repository, pullRequestId, dryRun?, triggeredBy?
 }
 
 AnalysisResult {
@@ -251,6 +350,17 @@ SessionData {
   toolsUsed: string[],
   tokenUsage?: TokenUsage,
   estimatedCost?: number,
+}
+
+ReviewPrResult {
+  allPassed: boolean,
+  checksRun: number,
+  commentsPosted: number,
+  tokenUsage?: TokenUsage,
+  estimatedCost?: number,
+  durationMs?: number,
+  toolsUsed?: string[],
+  rawResponse?: string,
 }
 
 LumosConfig {
@@ -303,6 +413,7 @@ All errors extend `LumosError` and carry a machine-readable `code` plus a
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Autonomous agent (not structured output) for V1       | Agent can fetch files, read code, and reason about context. Structured output would need all context upfront.                                                                                                                                                                                            |
 | Single comment (not per-failure)                      | Developers prefer one consolidated comment over N separate ones. Reduces noise.                                                                                                                                                                                                                          |
+| Separate review prompt for PR checks                  | PR convention validation has different inputs, tools, and verdict rules than Playwright failure triage, so it is clearer and safer as a dedicated prompt builder.                                                                                                                                        |
 | `maxFailures` removed (was capped at 10)              | Real PR 4638 had 17 failures; capping at 10 missed 7. Token cost is acceptable (~230k for 17).                                                                                                                                                                                                           |
 | Comment dedup via MCP `delete_comment`                | The Bitbucket MCP server DOES have `delete_comment`. AI deletes old Lumos comments as part of its workflow step 2.                                                                                                                                                                                       |
 | Memory bank loaded from consumer's project root       | Lighthouse has failure-pattern files that give the AI project-specific context.                                                                                                                                                                                                                          |

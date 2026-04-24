@@ -132,7 +132,7 @@ Key gotchas:
 ## Bitbucket MCP Tools (available)
 
 `get_pull_request`, `list_pull_requests`, `create_pull_request`,
-`update_pull_request`, `add_comment`, `delete_comment`, `merge_pull_request`,
+`update_pull_request`, `list_pr_commits`, `add_comment`, `delete_comment`, `merge_pull_request`,
 `list_branches`, `delete_branch`, `get_branch`, `get_pull_request_diff`,
 `approve_pull_request`, `unapprove_pull_request`, `request_changes`,
 `remove_requested_changes`, `list_directory_content`, `get_file_content`
@@ -140,6 +140,15 @@ Key gotchas:
 Comment dedup uses `delete_comment` via MCP (the tool IS available). The AI
 reads existing comments from `get_pull_request` response, identifies old Lumos
 comments, and deletes them before posting a new one.
+
+The new PR review prompt explicitly relies on this subset:
+
+- `get_pull_request`
+- `get_pull_request_diff`
+- `list_pr_commits`
+- `add_comment`
+- `delete_comment`
+- `get_file_content`
 
 ## Playwright JSON Report Structure
 
@@ -244,6 +253,9 @@ npx tsx scripts/test-local.ts           # defaults to PR 4598
 # Local test (live, calls AI + posts PR comment)
 npx tsx scripts/test-local.ts --live --pr 4638
 
+# Local PR review smoke test (dry run by default)
+pnpm tsx scripts/review-local.ts
+
 # Verify package contents before publish
 npm pack --dry-run                        # lists files + size (should be ~34.5 kB, 40 files)
 
@@ -261,3 +273,5 @@ pnpm run lumos:analyze --type mock --pr-id ${prId} --workspace BZ --repository l
 | 1.1.1   | 2026-04 | Prompt size diagnostic logging                             | feat          |
 | 1.1.2   | 2026-04 | Duplicate comment fix (MCP verification, PR ID extraction) | fix           |
 | 1.1.3   | 2026-04 | Orchestrator cleanup, no-action signal fix                 | fix           |
+| 1.4.3   | 2026-04 | PR-creation git flow + credential injection fixes          | fix           |
+| 1.5.0   | pending | PR review (10 checks, repo-agnostic, video proofs)         | feat          |
