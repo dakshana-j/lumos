@@ -11,6 +11,10 @@ import {
   buildTestGenSystemPrompt,
   buildTestGenUserMessage,
 } from './prompts/test-gen-prompt.js';
+import {
+  buildPrReviewSystemPrompt,
+  buildPrReviewUserMessage,
+} from './prompts/pr-review-prompt.js';
 import { logger } from './utils/logger.js';
 import { MCPError, ConfigError } from './utils/errors.js';
 import {
@@ -39,6 +43,8 @@ import type {
   TokenUsage,
   TestGenOptions,
   TestGenResult,
+  ReviewPrOptions,
+  ReviewPrResult,
 } from './parsers/types.js';
 
 // ---------------------------------------------------------------------------
@@ -1356,6 +1362,133 @@ export class LumosOrchestrator {
   // -------------------------------------------------------------------------
   // Comment extraction
   // -------------------------------------------------------------------------
+
+  /**
+   * Review a pull request against Lighthouse engineering conventions.
+   * Fetches the PR + diff, runs all checks, and posts a structured review comment.
+   */
+  async reviewPr(options: ReviewPrOptions): Promise<ReviewPrResult> {
+    if (!this.initialized) {
+      throw new ConfigError(
+        'LumosOrchestrator.initialize() must be called first.',
+        { hint: 'Call await orchestrator.initialize() before reviewPr()' }
+      );
+    }
+
+    // -- Resolve PR ID from branch when not provided -------------------------
+    let pullRequestId = options.pullRequestId ?? '';
+    const branch = options.branch ?? '';
+
+    if (!pullRequestId || pullRequestId === '0') {
+      if (branch) {
+        const prs = await listPrsForBranch(
+          options.workspace,
+          options.repository,
+          branch
+        );
+        if (prs.length > 0 && prs[0].id) {
+          pullRequestId = String(prs[0].id);
+        } else {
+          logger.warn(
+            `[reviewPr] Could not resolve PR from branch "${branch}". AI will discover the PR at runtime.`
+          );
+          pullRequestId = 'find-by-branch';
+        }
+      } else {
+        logger.warn(
+          '[reviewPr] No pullRequestId or branch provided. AI may not be able to fetch PR details.'
+        );
+      }
+    }
+
+    const resolvedOptions: ReviewPrOptions = {
+      ...options,
+      pullRequestId,
+      branch,
+    };
+
+    const startTime = Date.now();
+    const systemPrompt = buildPrReviewSystemPrompt(
+      this.config,
+      this.projectRoot
+    );
+    const userMessage = buildPrReviewUserMessage(resolvedOptions);
+
+    if (options.dryRun) {
+      logger.info('[reviewPr] Dry run — printing prompts, skipping AI call.');
+      logger.info(`\n--- SYSTEM PROMPT ---\n${systemPrompt}\n---`);
+      logger.info(`\n--- USER MESSAGE ---\n${userMessage}\n---`);
+      return { allPassed: false, checksRun: 0, commentsPosted: 0 };
+    }
+
+    logger.info(`[reviewPr] Starting review for PR #${pullRequestId}`);
+
+    // Deduplicate: delete any existing "## Lumos Review" comment before posting
+    // a new one. The agent prompt also instructs dedup, but orchestrator-level
+    // cleanup is the reliable guarantee (same pattern as analyze()).
+    if (
+      pullRequestId &&
+      pullRequestId !== '0' &&
+      pullRequestId !== 'find-by-branch'
+    ) {
+      const cleanup = await this.deletePreviousLumosComments(
+        resolvedOptions.workspace,
+        resolvedOptions.repository,
+        pullRequestId
+      );
+      if (cleanup.deleted > 0) {
+        logger.info(
+          `[reviewPr] Cleaned up ${cleanup.deleted} previous Lumos Review comment(s).`
+        );
+      }
+    }
+
+    const result = await this.neurolink.generate({
+      input: { text: userMessage },
+      provider: this.config.ai.provider,
+      model: this.config.ai.model,
+      systemPrompt,
+      temperature: this.config.ai.temperature,
+      maxTokens: this.config.ai.maxTokens,
+      timeout: this.config.ai.timeout,
+    });
+
+    const durationMs = Date.now() - startTime;
+    const responseText = result.content ?? '';
+    const toolsUsed: string[] = result.toolsUsed ?? [];
+    const commentsPosted = toolsUsed.some((t) => t.includes('add_comment'))
+      ? 1
+      : 0;
+    const allPassed = /verdict:\s*✅\s*approved/i.test(responseText);
+
+    let tokenUsage: ReviewPrResult['tokenUsage'];
+    let estimatedCost: number | undefined;
+
+    if (result.usage) {
+      tokenUsage = {
+        input: result.usage.input,
+        output: result.usage.output,
+        total: result.usage.total,
+      };
+      estimatedCost = estimateUsdCost(tokenUsage);
+    }
+
+    logger.info(
+      `[reviewPr] Done. allPassed=${allPassed}, commentsPosted=${commentsPosted}, ` +
+        `duration=${(durationMs / 1000).toFixed(1)}s`
+    );
+
+    return {
+      allPassed,
+      checksRun: 10,
+      commentsPosted,
+      tokenUsage,
+      estimatedCost,
+      durationMs,
+      toolsUsed,
+      rawResponse: responseText,
+    };
+  }
 
   /**
    * Check whether the AI agent called add_comment during its run.
