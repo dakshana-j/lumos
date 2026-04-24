@@ -1,3 +1,7 @@
+## 1.5.0 (2026-04-24)
+
+* feat: add repo-agnostic PR review workflow with 10 structured checks ([0a89fa5](https://github.com/juspay/lumos/commit/0a89fa5))
+
 ## <small>1.4.3 (2026-04-23)</small>
 
 * fix: extend credential injection to git push ([4af88a0](https://github.com/juspay/lumos/commit/4af88a0))
