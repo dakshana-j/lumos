@@ -1,3 +1,7 @@
+## <small>1.5.1 (2026-04-26)</small>
+
+* fix: reset index and rebase onto dev branch in fix mode ([0049ef9](https://github.com/juspay/lumos/commit/0049ef9))
+
 ## 1.5.0 (2026-04-24)
 
 * feat: add repo-agnostic PR review workflow with 10 structured checks ([0a89fa5](https://github.com/juspay/lumos/commit/0a89fa5))
